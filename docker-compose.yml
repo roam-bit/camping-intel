@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_DB: camping
+      POSTGRES_USER: camping
+      POSTGRES_PASSWORD: camping123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U camping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://camping:camping123@postgres:5432/camping
+      REDIS_URL: redis://redis:6379/0
+      ARK_API_KEY: ${ARK_API_KEY:-}
+      ARK_MODEL: ${ARK_MODEL:-doubao-seed-2-0-mini-260428}
+      AMAP_WEB_KEY: ${AMAP_WEB_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "10086:10086"
+    depends_on:
+      - api
+    volumes:
+      - ./frontend/src:/app/src
+    environment:
+      # 容器内 localhost 指容器自己，连不到 api 服务；用 Compose 服务名做主机名（spec-011）
+      TARO_APP_API_BASE: http://api:8000
+      TARO_APP_AMAP_WEB_KEY: ${TARO_APP_AMAP_WEB_KEY:-${AMAP_WEB_KEY:-${AMAP_JS_KEY:-}}}
+      TARO_APP_AMAP_SECURITY_CODE: ${TARO_APP_AMAP_SECURITY_CODE:-${AMAP_SECURITY_CODE:-${AMAP_JS_SECURITY_CODE:-}}}
+
+volumes:
+  pgdata:

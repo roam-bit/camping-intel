@@ -1,0 +1,119 @@
+/* spec-017 B 方案：QR 二维码 modal */
+
+.qr-modal-mask {
+  position: fixed;
+  z-index: 999;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+.qr-modal-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 86%;
+  max-width: 420px;
+  padding: 22px 18px 18px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.28);
+}
+
+.qr-modal-title {
+  margin-bottom: 4px;
+  color: #111827;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.qr-modal-subtitle {
+  display: block;
+  margin-bottom: 12px;
+  color: #738095;
+  font-size: 12px;
+}
+
+.qr-modal-qr-hint {
+  display: block;
+  margin: 6px 0 10px;
+  color: #738095;
+  font-size: 11px;
+  text-align: center;
+}
+
+.qr-modal-img-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 220px;
+  height: 220px;
+  margin-bottom: 10px;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+}
+
+.qr-modal-img {
+  width: 200px;
+  height: 200px;
+}
+
+.qr-modal-loading {
+  color: #738095;
+  font-size: 13px;
+}
+
+.qr-modal-url {
+  display: block;
+  margin-bottom: 6px;
+  padding: 0 8px;
+  color: #176fd1;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+  word-break: break-all;
+}
+
+.qr-modal-copy-btn {
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  margin-bottom: 8px;
+  color: #ffffff;
+  background: #1687f5;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.qr-modal-copy-btn text {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.qr-modal-close-btn {
+  width: 100%;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1687f5;
+  background: #eef7ff;
+  border: 1px solid #c8e7ff;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.qr-modal-close-btn text {
+  font-size: 15px;
+}

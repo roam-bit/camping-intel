@@ -1,0 +1,35 @@
+{
+  "_description": "spec-006 测试 fixture：模拟一个『免费露营地』话题页内的 5 条帖。3 条含『莫干山』、2 条无关。",
+  "posts": [
+    {
+      "title": "莫干山西坡免费露营点实测",
+      "text_excerpt": "上周末去了莫干山西坡的免费露营点，靠近德清县。有 3-4 块平地可以扎营，水源在山脚溪流。晚上没什么人，注意露水大。整体推荐。",
+      "published_at": "2026-04-15T18:30:00",
+      "permalink_url": "https://weitoutiao.zjurl.cn/article/aaaa1111"
+    },
+    {
+      "title": "莫干山顶星空露营，三脚架建议带",
+      "text_excerpt": "莫干山顶视野极佳，可以看到湖州夜景。带了星空相机过去，光污染较低。注意山顶气温比山脚低 5-8 度。",
+      "published_at": "2026-03-22T21:10:00",
+      "permalink_url": "https://weitoutiao.zjurl.cn/article/bbbb2222"
+    },
+    {
+      "title": "周末莫干山亲子露营路线",
+      "text_excerpt": "适合带小孩的莫干山东侧路线，路平坦，有官方营地配套厕所。需要预约。距离杭州市区约 90 分钟车程。",
+      "published_at": "2026-05-01T09:00:00",
+      "permalink_url": "https://weitoutiao.zjurl.cn/article/cccc3333"
+    },
+    {
+      "title": "西藏纳木错湖边野营 7 日",
+      "text_excerpt": "纳木错海拔 4700 米，记得带高反药。湖边温差极大，白天 20 度晚上接近零度。需要边防证。",
+      "published_at": "2026-02-05T12:00:00",
+      "permalink_url": "https://weitoutiao.zjurl.cn/article/dddd4444"
+    },
+    {
+      "title": "长白山天池露营须知",
+      "text_excerpt": "长白山北坡夏季可以申请营地。冬天封山。注意是火山公园，部分区域禁止野营，必须用指定区域。",
+      "published_at": "2026-01-18T15:30:00",
+      "permalink_url": "https://weitoutiao.zjurl.cn/article/eeee5555"
+    }
+  ]
+}
