@@ -1,0 +1,640 @@
+/**
+ * H5 专属样式（仅 H5 构建加载，小程序不引入——见 index.tsx 的条件 require）。
+ *
+ * 两部分：
+ * 1) 「湖畔晨雾 A-2」主题换肤（全部宽度生效）：主绿 #2F6E66 / 次绿 #3F7A70 /
+ *    暖沙底 #F7F5EF / CTA 珊瑚橙 #E0764A。设计稿见 /tmp/h5_demos/demo2_v1b.html
+ *    （2026-06-12 用户选定）。
+ * 2) 桌面分栏布局（≥900px）：顶栏（品牌+搜索）+ 左侧 dock 列（AI 卡+点位列表）
+ *    + 右侧圆角地图卡。≤899px 手机宽度保持原版式只换色。
+ *
+ * 背景知识：Taro H5 根字号被运行时按视口缩放（宽屏封顶 40px）。pxtransform 已在
+ * config/index.js 对 H5 关闭，这里给 .page 设回 14px 基准，防未设字号元素继承爆炸。
+ */
+
+.page {
+  font-size: 14px;
+  /* —— 湖畔晨雾 A-2 调色板 —— */
+  --c-pine: #2F6E66;   /* 主绿：AI 卡 / 选中态 / 标题 */
+  --c-moss: #3F7A70;   /* 次绿：信源数 / 焦点描边 / 营地 marker */
+  --c-cream: #F7F5EF;  /* 暖沙底 */
+  --c-sand: #E5E2D6;   /* 边框 / 分隔 */
+  --c-bark: #5F584A;   /* 次级文字（暖灰棕） */
+  --c-cta: #CC6B43;    /* 行动按钮陶土橙（比初版 #E0764A 压一档饱和，避免大面积扎眼） */
+  /* —— 功能色板（同调性多色：色相保留、饱和度统一压到主题档位） —— */
+  --f-red: #C0504E;    /* 灰调红（小红书/微博类） */
+  --f-blue: #5B6FA8;   /* 灰调蓝（知乎/B站类，与驻车点 marker 同源） */
+  --f-amber: #C09A2D;  /* 赭黄（马蜂窝类） */
+  --f-danger: #A6453B; /* 警示红（有风险） */
+  --c-ink: #33352E;    /* 正文 */
+  --c-sub: #7C7E70;    /* 辅助文字 */
+  --c-park: #5B6FA8;   /* 驻车点 marker 蓝 */
+  --serif: "Songti SC", "Noto Serif SC", serif;
+  background: var(--c-cream);
+  color: var(--c-ink);
+}
+
+/* ───────────────────────── 1. 主题换肤（全宽度） ───────────────────────── */
+
+/* 顶部面板 → 暖沙纸面 */
+.top-panel {
+  background: rgba(247, 245, 239, 0.97);
+  border: 1px solid var(--c-sand);
+}
+
+.mode-tab { color: var(--c-bark); }
+.mode-tab.active { color: var(--c-pine); }
+.mode-tab.active::after { background: var(--c-pine); }
+
+.search-shell {
+  background: #fff;
+  border: 2px solid var(--c-sand);
+  border-radius: 999px;
+}
+.search-shell:focus-within {
+  border-color: var(--c-moss);
+  box-shadow: 0 4px 18px rgba(63, 122, 112, 0.18);
+}
+
+.primary-btn,
+.search-btn {
+  background: var(--c-cta);
+  border-radius: 999px;
+}
+
+.search-progress-card { border: 1px solid var(--c-sand); }
+.search-progress-card .progress-bar-fill { background: var(--c-pine); }
+.search-progress-card .progress-stage { color: var(--c-pine); }
+
+.result-tab {
+  color: var(--c-bark);
+  background: var(--c-cream);
+  border: 1px solid var(--c-sand);
+}
+.result-tab.active {
+  color: #EAF2EC;
+  background: var(--c-pine);
+  border-color: var(--c-pine);
+  font-weight: 700;
+}
+
+/* 开屏引导卡 */
+.empty-hero {
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid var(--c-sand);
+  border-radius: 18px;
+  box-shadow: 0 18px 48px rgba(47, 110, 102, 0.16);
+}
+.empty-hero-title { color: var(--c-pine); font-family: var(--serif); }
+.empty-hero-sub { color: var(--c-bark); }
+.hero-chip {
+  color: var(--c-pine);
+  background: rgba(63, 122, 112, 0.08);
+  border: 1px solid rgba(63, 122, 112, 0.3);
+}
+.hero-chip:hover,
+.hero-chip:active {
+  background: rgba(63, 122, 112, 0.16);
+  border-color: var(--c-moss);
+}
+.empty-hero-foot { color: var(--c-sub); }
+
+/* AI 提炼结果 → 深绿情报卡（incomplete 降级态保留原暖黄警示样式） */
+.answer-panel:not(.incomplete) {
+  background: var(--c-pine);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  box-shadow: 0 14px 32px rgba(47, 110, 102, 0.28);
+}
+.answer-panel:not(.incomplete) .answer-title { color: #AECFC4; }
+.answer-panel:not(.incomplete) .answer-text { color: #EAF2EC; }
+.answer-panel:not(.incomplete) .answer-meta,
+.answer-panel:not(.incomplete) .answer-meta text { color: #C7DCD4; }
+.answer-panel:not(.incomplete) .source-chip {
+  color: #EAF2EC;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* 底部卡片区 / 列表 */
+.bottom-sheet {
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid var(--c-sand);
+  border-radius: 18px;
+}
+.sheet-title { color: var(--c-pine); font-family: var(--serif); }
+.subtle { color: var(--c-sub); }
+.switch-btn {
+  color: var(--c-pine);
+  background: rgba(63, 122, 112, 0.1);
+  border: 1px solid rgba(63, 122, 112, 0.3);
+}
+.pill { color: var(--c-bark); background: var(--c-cream); border: 1px solid var(--c-sand); }
+.pill.selected { color: #EAF2EC; background: var(--c-pine); border-color: var(--c-pine); }
+
+.place-card { border: 1px solid var(--c-sand); border-radius: 14px; }
+.list-panel { background: var(--c-cream); }
+
+/* 右侧设施筛选条 */
+.rail-btn { color: var(--c-bark); background: rgba(255, 255, 255, 0.95); border: 1px solid var(--c-sand); }
+.rail-btn.active { color: #EAF2EC; background: var(--c-pine); border-color: var(--c-pine); }
+
+/* 地图 marker：按类型着色（MapCanvas.tsx 注入 type-* class） */
+.map-poi-marker.source { color: var(--c-moss); }
+.map-poi-marker.source.type-camp { color: var(--c-moss); }
+.map-poi-marker.source.type-park { color: var(--c-park); }
+.map-poi-marker.source.type-wild { color: var(--c-cta); }
+.map-poi-score { background: var(--c-pine); }
+
+/* 详情抽屉 */
+.detail-drawer { border-radius: 18px; border: 1px solid var(--c-sand); }
+
+/* —— 残留旧蓝色清扫（2026-06-12 浏览器实测逐个确认） —— */
+.place-thumb {
+  background:
+    linear-gradient(135deg, rgba(47, 110, 102, 0.88), rgba(63, 122, 112, 0.84)),
+    linear-gradient(180deg, #E8F0EC, #CFE3DC);
+}
+.ai-card .place-thumb {
+  background:
+    linear-gradient(135deg, rgba(63, 122, 112, 0.88), rgba(92, 142, 110, 0.84)),
+    linear-gradient(180deg, #E8F0EC, #D8EAD9);
+}
+.card-nav-btn { background: var(--c-cta); }
+.facility-badge.active { background: var(--c-moss); }
+.layer-badge { background: var(--c-bark); }
+.layer-badge.ai { background: var(--c-moss); }
+.layer-badge.source { background: var(--c-pine); }
+.stars { color: var(--c-cta); }
+.source-chip { color: var(--c-pine); background: rgba(63, 122, 112, 0.08); }
+.unmapped-source { color: var(--c-pine); }
+.source-title { color: var(--c-pine); }
+.source-view-btn { color: var(--c-pine); }
+.icon-entry { color: var(--c-pine); }
+.floating-list-btn { background: var(--c-pine); }
+.map-poi-marker { color: var(--c-moss); }
+.map-poi-marker.ai { color: var(--c-moss); }
+.map-poi-marker.base { color: var(--c-park); }
+.ai-dot { background: var(--c-moss); }
+.base-dot { background: var(--c-park); }
+.nav-main-btn.verified {
+  background: linear-gradient(135deg, #2F6E66 0%, #3F8A78 100%);
+}
+
+/* —— 功能色板落地（2026-06-12 用户反馈：原色系扎眼但不想单色化） ——
+   原则：色相保留、调性统一；一屏只留一个实心橙主按钮，次级动作降为描边。 */
+
+/* 平台图标：品牌原色 → 灰调版（!important 压过组件内联的品牌色；weapp 不受影响） */
+.platform-icon.platform-xhs { background: var(--f-red) !important; }
+.platform-icon.platform-weibo { background: #B0483C !important; }
+.platform-icon.platform-gov { background: var(--f-danger) !important; }
+.platform-icon.platform-zhihu { background: var(--f-blue) !important; }
+.platform-icon.platform-bilibili { background: #4D8FAE !important; }
+.platform-icon.platform-douyin { background: #3A4039 !important; }
+.platform-icon.platform-mafengwo { background: var(--f-amber) !important; }
+.platform-icon.platform-other { background: var(--c-sub) !important; }
+
+/* 点位卡上的圆形导航钮：实心橙×N 个 → 描边幽灵钮（橙只留给主 CTA） */
+.card-nav-btn {
+  color: var(--c-cta);
+  background: rgba(204, 107, 67, 0.1);
+  border: 1.5px solid rgba(204, 107, 67, 0.45);
+}
+
+/* 「有风险」反馈钮：正红 → 警示灰红 */
+.secondary-btn.danger {
+  color: var(--f-danger);
+  background: #F7ECE6;
+  border-color: #E5CFC2;
+}
+
+/* 顶栏「发布」文字链接：跟随主题墨绿，不再用亮色 */
+.text-link { color: var(--c-pine); }
+
+/* —— 开发者面板（齿轮入口 + 右侧抽屉；定位是桌面演示工具，手机宽度藏入口） —— */
+.dev-gear { display: none; }
+@media (min-width: 900px) { .dev-gear { display: inline-flex; } }
+.dev-gear {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid var(--c-sand);
+  font-size: 15px;
+  line-height: 1;
+  /* display 由上方「手机藏/桌面显」两条规则控制，这里不要再写 display */
+  align-items: center;
+  justify-content: center;
+  opacity: 0.75;
+}
+.dev-gear:hover { opacity: 1; background: var(--c-cream); }
+.dev-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(31, 41, 38, 0.32);
+}
+.dev-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 460px;
+  max-width: 92vw;
+  background: var(--c-cream);
+  border-left: 2px solid var(--c-sand);
+  box-shadow: -16px 0 44px rgba(15, 23, 42, 0.22);
+  display: flex;
+  flex-direction: column;
+}
+.dev-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 2px solid var(--c-sand);
+}
+.dev-title { font-family: var(--serif); font-size: 16px; font-weight: 700; color: var(--c-pine); }
+.dev-close {
+  width: 30px; height: 30px; padding: 0; border-radius: 50%;
+  background: rgba(95, 88, 74, 0.08); color: var(--c-bark); font-size: 16px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.dev-body { flex: 1; min-height: 0; }
+/* padding 放内壁层——Taro ScrollView 本体吃 padding 不可靠（同 .list-panel-inner 的坑） */
+.dev-body-inner { padding: 8px 26px 32px 22px; }
+.dev-section-title {
+  display: block;
+  margin: 22px 0 10px;
+  font-family: var(--serif);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--c-pine);
+  letter-spacing: 0.5px;
+}
+.dev-field-label { display: block; font-size: 12px; color: var(--c-bark); margin: 10px 0 7px; }
+.dev-chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.dev-chip {
+  /* Taro Button 默认 display:block + width:100% 会让每个选项独占一行——强制收回 */
+  width: auto;
+  flex: 0 0 auto;
+  min-width: 56px; height: 34px; padding: 0 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; font-size: 13px;
+  background: #fff; color: var(--c-bark); border: 1px solid var(--c-sand);
+  cursor: pointer;
+}
+.dev-chip.on { background: var(--c-pine); color: #EAF2EC; border-color: var(--c-pine); font-weight: 700; }
+.dev-hint { display: block; font-size: 11.5px; line-height: 1.7; color: var(--c-sub); margin: 8px 0 4px; }
+.dev-kv-list { background: #fff; border: 1px solid var(--c-sand); border-radius: 12px; padding: 6px 12px; }
+.dev-kv { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--c-sand); }
+.dev-kv:last-child { border-bottom: none; }
+.dev-kv .k { font-size: 12px; color: var(--c-sub); flex: 0 0 auto; }
+.dev-kv .v { font-size: 12px; color: var(--c-ink); text-align: right; word-break: break-all; }
+.dev-prompt {
+  display: block;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--c-ink);
+  background: #fff;
+  border: 1px solid var(--c-sand);
+  border-radius: 12px;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* —— demo2 小组件搬运（2026-06-12 用户圈选确认） —— */
+
+/* 圆形 emoji 地图 pin：营地绿 / 驻车点蓝 / 野外橙 */
+.map-pin {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  border: 3px solid #fff;
+  box-shadow: 0 5px 12px rgba(30, 77, 71, 0.35);
+  cursor: pointer;
+}
+.map-pin.camp { background: var(--c-moss); }
+.map-pin.park { background: var(--c-park); }
+.map-pin.wild { background: var(--c-cta); }
+
+/* 地图右下角类型图例 */
+.map-type-legend {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 10;
+  display: flex;
+  gap: 14px;
+  padding: 9px 16px;
+  background: rgba(247, 245, 239, 0.95);
+  border: 1px solid var(--c-sand);
+  border-radius: 999px;
+  font-size: 12px;
+  box-shadow: 0 2px 10px rgba(95, 88, 74, 0.14);
+}
+.legend-item-h5.camp { color: var(--c-moss); }
+.legend-item-h5.park { color: var(--c-park); }
+.legend-item-h5.wild { color: var(--c-cta); }
+
+/* 点位卡：类型徽章（右上） */
+.type-badge {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+.type-badge.camp { background: #DCEBE3; color: #1E5C50; }
+.type-badge.park { background: #E2E7F4; color: #46598F; }
+.type-badge.wild { background: #FBE7D6; color: #B25526; }
+
+/* 点位卡：设施 emoji 圆点（只显示具备的设施） */
+.facility-dots { display: inline-flex; gap: 5px; margin-left: auto; }
+.facility-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--c-cream);
+  border: 1px solid var(--c-sand);
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-tags { align-items: center; }
+.card-tag-sources { color: var(--c-moss); font-weight: 700; }
+
+/* AI 卡：结构化条目卡（编号流水账 → 每个地点一张小卡） */
+.answer-entries { display: flex; flex-direction: column; gap: 8px; }
+.answer-entries .answer-text { margin-bottom: 2px; }
+.answer-entry {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+}
+.answer-entry-name {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #EAF2EC;
+}
+.answer-entry-addr {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #C7DCD4;
+}
+.answer-entry-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+.answer-entry-chip {
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: #DFE9E1;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+/* incomplete 降级态（暖黄底）下条目卡翻成深色文字 */
+.answer-panel.incomplete .answer-entry { background: rgba(95, 88, 74, 0.06); border-color: rgba(95, 88, 74, 0.16); }
+.answer-panel.incomplete .answer-entry-name { color: var(--c-ink); }
+.answer-panel.incomplete .answer-entry-addr { color: var(--c-bark); }
+.answer-panel.incomplete .answer-entry-chip { color: var(--c-bark); background: rgba(95, 88, 74, 0.08); border-color: rgba(95, 88, 74, 0.2); }
+
+/* AI 卡：平台概览 chips（📕 小红书 ·N） */
+.platform-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 10px;
+}
+.platform-summary-chip {
+  font-size: 11.5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  color: #EAF2EC;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+/* incomplete 降级态（暖黄卡）里 chips 翻成深色，保证可读 */
+.answer-panel.incomplete .platform-summary-chip {
+  color: var(--c-bark);
+  background: rgba(95, 88, 74, 0.08);
+  border-color: rgba(95, 88, 74, 0.2);
+}
+
+/* 「AI 生成整理」合规 chip：紫罗兰 → 主题调性 */
+.ai-gen-chip,
+.ai-gen-tag {
+  color: var(--c-bark) !important;
+  background: rgba(95, 88, 74, 0.08) !important;
+  border-color: rgba(95, 88, 74, 0.22) !important;
+}
+
+/* ───────────────────── 2. 手机宽度修正（≤899px） ───────────────────── */
+
+/* 品牌区只在桌面分栏顶栏显示 */
+.brand { display: none; }
+
+/* .top-panel.collapsed 的桌面宽度公式 calc(100% - 280px) 在 390px 屏上只剩
+   110px，进度卡被挤成竖排。媒体查询里的 .top-panel 规则特异性压不过
+   .top-panel.collapsed——用同等特异性补一条。 */
+@media (max-width: 899px) {
+  .top-panel.collapsed {
+    width: auto;
+    left: 10px;
+    right: 10px;
+  }
+}
+
+/* ───────────────────── 3. 桌面分栏布局（≥900px） ───────────────────── */
+
+@media (min-width: 900px) {
+  /* 顶栏：通栏纸面 bar（品牌 | 地图/列表 | 搜索 | 分类 tab） */
+  .top-panel,
+  .top-panel.collapsed {
+    top: 0;
+    left: 0;
+    right: 0;
+    width: auto;
+    max-width: none;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 10px 22px;
+    border-radius: 0;
+    border-width: 0 0 2px 0;
+    box-shadow: none;
+  }
+  /* collapsed 态在桌面不收窄、不藏导航 */
+  .top-panel.collapsed .nav-row { display: flex; }
+  .top-panel.collapsed .search-shell { height: 42px; padding: 0 16px; }
+  .top-panel.collapsed .search-btn { height: 42px; font-size: 14px; }
+
+  .brand { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--c-pine);
+    color: #EAF2EC;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+  }
+  .brand-name {
+    display: block;
+    font-family: var(--serif);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--c-pine);
+    white-space: nowrap;
+  }
+  .brand-sub {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--c-sub);
+    margin-top: 1px;
+  }
+
+  .nav-row { margin-bottom: 0; flex: 0 0 auto; }
+  .search-row { flex: 1 1 auto; max-width: 600px; }
+  .search-shell { height: 42px; }
+  .result-tabs { margin-top: 0; flex: 0 0 auto; }
+
+  /* 搜索进度卡：悬浮在顶栏正下方居中，不挤压顶栏 */
+  .search-progress-card {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 520px;
+    z-index: 40;
+    border-radius: 14px;
+    box-shadow: 0 14px 32px rgba(47, 110, 102, 0.2);
+  }
+
+  /* 左侧 dock 列：AI 情报卡 + 点位列表（map 模式）/ 列表面板（list 模式） */
+  .dock {
+    position: absolute;
+    z-index: 26;
+    left: 16px;
+    top: 82px;
+    bottom: 16px;
+    width: 404px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+  }
+  .dock:empty { display: none; }
+
+  .dock .answer-panel {
+    position: static;
+    width: auto;
+    max-width: none;
+    max-height: 44%;
+    flex: 0 0 auto;
+  }
+
+  .dock .bottom-sheet {
+    position: static;
+    transform: none;
+    width: auto;
+    max-width: none;
+    max-height: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    backdrop-filter: none;
+  }
+  /* 点位卡改纵向滚动列 */
+  .dock .card-row {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex !important;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    white-space: normal !important;
+  }
+  .dock .card-row .place-card,
+  .dock .card-row .place-card.compact,
+  .dock .card-row .empty-card {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    margin-right: 0;
+    flex: 0 0 auto;
+  }
+  .dock .unmapped { flex: 0 0 auto; }
+
+  /* list 模式：列表面板嵌进 dock 列（地图保持可见） */
+  .dock .list-panel {
+    position: static;
+    inset: auto;
+    width: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    background: transparent;
+    /* 必须重置：共享样式里 .list-panel 用 `left:50% + translateX(-50%)` 做绝对定位居中。
+       这里改成 static 之后 left 失效、transform 却还在，-50% 就从「居中」变成
+       「往左推自身一半宽度」（实测 -202px），整列卡片被推出视口左侧只剩一半。 */
+    transform: none;
+  }
+
+  /* 地图：右侧圆角大卡（dock 为空＝未搜索时铺满整行） */
+  .map-wrap {
+    left: 436px;
+    top: 82px;
+    right: 16px;
+    bottom: 16px;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 3px solid #fff;
+    box-shadow: 0 6px 28px rgba(47, 110, 102, 0.16);
+  }
+  .page:has(.dock:empty) .map-wrap { left: 16px; }
+
+  /* 分栏下冗余的悬浮工具收起 */
+  .map-left-tools { display: none; }
+
+  /* 设施筛选条：浮在地图卡右上 */
+  .facility-rail { top: 96px; right: 30px; }
+
+  /* 详情抽屉：右侧立板（不再全宽底部弹出） */
+  .detail-drawer {
+    left: auto;
+    right: 16px;
+    top: 82px;
+    bottom: 16px;
+    width: 480px;
+    max-width: none;
+    max-height: none;
+    transform: none;
+    border-radius: 20px;
+    box-shadow: -12px 0 44px rgba(15, 23, 42, 0.22);
+  }
+}

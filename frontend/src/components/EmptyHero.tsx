@@ -18,7 +18,10 @@ export interface EmptyHeroProps {
 
 export function EmptyHero({ onQueryPick, onDismiss }: EmptyHeroProps) {
   return (
-    <View className='empty-hero' style={{ position: 'relative' }}>
+    // 注意：不要给 .empty-hero 加内联 position——曾经的 style={{position:'relative'}}
+    // 覆盖了 CSS 的 position:absolute，把整张卡顶出首屏（用户从未见过引导卡）。
+    // ✕ 按钮的 absolute 定位以 .empty-hero（本身就是 absolute）为锚点，无需 relative。
+    <View className='empty-hero'>
       <View
         className='empty-hero-close'
         onClick={onDismiss}

@@ -27,6 +27,10 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://camping:camping123@postgres:5432/camping
       REDIS_URL: redis://redis:6379/0
+      # alembic/env.py 和 seed 脚本都是 `from app.xxx import ...`。
+      # 容器 WORKDIR=/app，但 alembic 命令行启动时 sys.path 不含 cwd → ModuleNotFoundError。
+      # 本地 start_dev.sh 里等价的一行是 export PYTHONPATH=backend。
+      PYTHONPATH: /app
       ARK_API_KEY: ${ARK_API_KEY:-}
       ARK_MODEL: ${ARK_MODEL:-doubao-seed-2-0-mini-260428}
       AMAP_WEB_KEY: ${AMAP_WEB_KEY:-}
@@ -37,7 +41,14 @@ services:
         condition: service_started
     volumes:
       - ./backend:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # 新机器上 Postgres 是空库：不先建表，任何搜索都会 500「places 表不存在」；
+    # 不种演示数据，打开页面是空的。两步都放进启动命令，学生才真的只需要一条
+    # `docker compose up`。两个脚本都幂等，重启不会重复写。
+    command: >
+      sh -c "alembic upgrade head &&
+             python scripts/load_seed_data.py &&
+             python scripts/seed_demo_spots.py &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
   frontend:
     build: ./frontend
@@ -48,8 +59,11 @@ services:
     volumes:
       - ./frontend/src:/app/src
     environment:
-      # 容器内 localhost 指容器自己，连不到 api 服务；用 Compose 服务名做主机名（spec-011）
-      TARO_APP_API_BASE: http://api:8000
+      # 必须是 localhost，不能是 Compose 服务名 `api`：
+      # 这个地址是编译进前端 JS 的，而那段 JS 在**用户的浏览器**里执行，不在前端容器里。
+      # 浏览器跑在宿主机上，DNS 解析不了 Docker 内网的 `api` → net::ERR_FAILED。
+      # api 服务已把 8000 映射到宿主机（见上面 ports），所以 localhost:8000 是通的。
+      TARO_APP_API_BASE: http://localhost:8000
       TARO_APP_AMAP_WEB_KEY: ${TARO_APP_AMAP_WEB_KEY:-${AMAP_WEB_KEY:-${AMAP_JS_KEY:-}}}
       TARO_APP_AMAP_SECURITY_CODE: ${TARO_APP_AMAP_SECURITY_CODE:-${AMAP_SECURITY_CODE:-${AMAP_JS_SECURITY_CODE:-}}}
 

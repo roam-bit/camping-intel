@@ -42,7 +42,9 @@ export function SearchBar({ query, searching, progress, onQueryChange, onSearch 
           AI搜索
         </Button>
       </View>
-      {searching && (
+      {/* searching 之外，后台精确定位阶段（searching=false 但 progress 非空）也要显示——
+          进度文案全局只在这一处出现（底部 sheet 不再重复显示进度） */}
+      {(searching || !!progress) && (
         <View className='search-progress-card'>
           <View className='progress-text-row'>
             <Text className='progress-stage'>{progress || '正在联网检索…'}</Text>

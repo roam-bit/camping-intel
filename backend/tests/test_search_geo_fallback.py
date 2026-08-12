@@ -172,3 +172,39 @@ async def test_no_place_token_keeps_user_location_no_amap(client):
     assert abs(sb["search_center"]["lon"] - 120.1551) < 0.01
     # amap 不该被调用
     mock_geo.assert_not_called()
+
+
+# ─────────────── 回归：莫干山必须走字典，不准掉进 amap 同名陷阱 ───────────────
+
+async def test_moganshan_dict_hit_regression(client):
+    """回归（2026-06-12）：「莫干山」曾不在字典里 → 走 amap 兜底 → amap 返回
+    福建泉州安溪县的同名小地名 → 搜索中心跑偏 500km+、DB 0 命中、AI 白等 30s+。
+    首页示例芯片「莫干山附近营地」一点就翻车。防止这个 bug 再来：
+    莫干山必须字典命中（浙江德清坐标），amap 不被调用。"""
+    mock_geo = AsyncMock(return_value=(25.06, 118.19, "福建省泉州市安溪县莫干山"))  # 复现当时的错误返回
+    with patch("app.routers.search.geocode_query", mock_geo):
+        status, data = await _post_search(client, "莫干山附近营地")
+
+    assert status == 200
+    sb = data["source_breakdown"]
+    assert sb["search_center_source"] == "dict", f"莫干山应走字典，实际 {sb.get('search_center_source')}"
+    # 莫干山在浙江德清（≈30.585, 119.877），绝不能在福建（lat≈25）
+    assert abs(sb["search_center"]["lat"] - 30.585) < 0.5, f"search_center 跑偏: {sb['search_center']}"
+    assert abs(sb["search_center"]["lon"] - 119.877) < 0.5
+    mock_geo.assert_not_called()
+
+
+# ─────────────── 开发者面板：prompt 只读预览接口 ───────────────
+
+async def test_dev_prompt_preview(client):
+    """开发者抽屉的 prompt 预览：limit 旋钮要真实反映到提示词文本里，且 50 封顶。"""
+    r = await client.get("/api/v1/dev/prompt-preview", params={"q": "莫干山附近营地", "limit": 24})
+    assert r.status_code == 200
+    data = r.json()
+    assert "最多列出 24 个候选" in data["prompt"]
+    assert "莫干山附近营地" in data["prompt"]
+    assert data["limit_effective"] == 24
+
+    r2 = await client.get("/api/v1/dev/prompt-preview", params={"limit": 999})
+    assert r2.json()["limit_effective"] == 50
+    assert "最多列出 50 个候选" in r2.json()["prompt"]

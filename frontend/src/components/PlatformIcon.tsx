@@ -9,7 +9,9 @@ export function PlatformIcon({ domain }: { domain?: string | null }) {
   const key = detectPlatform(domain)
   const meta = PLATFORM_META[key]
   return (
-    <View className='platform-icon' style={{ background: meta.bg }}>
+    // platform-{key} class 供 H5 主题用 !important 覆盖品牌原色为同调性灰调版
+    // （weapp 没有对应样式规则，仍走 inline 品牌色，视觉不变）
+    <View className={`platform-icon platform-${key}`} style={{ background: meta.bg }}>
       <Text className='platform-icon-char'>{meta.char}</Text>
     </View>
   )

@@ -14,14 +14,22 @@ const AMAP_SECURITY_CODE = process.env.TARO_APP_AMAP_SECURITY_CODE || ''
 
 let loadingPromise: Promise<any> | null = null
 
+/** `.env.example` 里的占位符原样留着时，等同于「没配 key」。
+ *  不这样判的话：占位符是非空字符串 → 当成有 key → 去请求高德 → 高德拒绝但脚本仍 200
+ *  → window.AMap 为 undefined → 页面抛 `Cannot read properties of undefined (reading 'Map')`。
+ *  新人第一次跑必踩，且报错完全看不出是 key 的问题。 */
+function isPlaceholder(v: string) {
+  return /^your[-_]/i.test(v.trim())
+}
+
 export function hasAmapKey() {
-  return Boolean(AMAP_KEY)
+  return Boolean(AMAP_KEY) && !isPlaceholder(AMAP_KEY)
 }
 
 export function loadAmap() {
   if (typeof window === 'undefined') return Promise.reject(new Error('高德地图只在 H5 浏览器环境初始化'))
   if (window.AMap) return Promise.resolve(window.AMap)
-  if (!AMAP_KEY) return Promise.reject(new Error('缺少 TARO_APP_AMAP_WEB_KEY，无法加载高德地图'))
+  if (!hasAmapKey()) return Promise.reject(new Error('缺少 TARO_APP_AMAP_WEB_KEY，无法加载高德地图'))
   if (AMAP_SECURITY_CODE) {
     window._AMapSecurityConfig = { securityJsCode: AMAP_SECURITY_CODE }
   }
@@ -30,8 +38,14 @@ export function loadAmap() {
       const script = document.createElement('script')
       script.src = `https://webapi.amap.com/maps?v=2.0&key=${AMAP_KEY}&plugin=AMap.Scale,AMap.ToolBar,AMap.MarkerCluster`
       script.async = true
-      script.onload = () => resolve(window.AMap)
-      script.onerror = () => reject(new Error('高德地图 JS API 加载失败'))
+      // 注意：key 无效时高德仍会返回 200 + 一段什么都不挂载的脚本，onload 照样触发。
+      // 不校验 window.AMap 就 resolve(undefined)，调用方 `new AMap.Map()` 直接抛
+      // `Cannot read properties of undefined (reading 'Map')` —— 报错和真实原因毫无关系。
+      script.onload = () =>
+        window.AMap
+          ? resolve(window.AMap)
+          : reject(new Error('高德 Key 无效或已过期（服务端拒绝了这个 Key）'))
+      script.onerror = () => reject(new Error('高德地图 JS API 加载失败，检查网络'))
       document.head.appendChild(script)
     })
   }

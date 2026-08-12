@@ -102,10 +102,22 @@ async def test_q_param_with_local_detect_shanghai(client):
     assert abs(sc["lat"] - 31.2304) < 0.01
     assert abs(sc["lon"] - 121.4737) < 0.01
 
-    # 断言 2: 所有点位都在上海行政区（lat 30.7-31.9, lon 120.9-122.1）
-    for p in d["places"]:
-        assert 30.7 < p["latitude"] < 31.9, f"点位 lat 越界: {p['name']} @ {p['latitude']}"
-        assert 120.9 < p["longitude"] < 122.1, f"点位 lon 越界: {p['name']} @ {p['longitude']}"
+    # 断言 2: 结果确实围绕上海，而不是留在杭州（这条测试要防的回归是「搜索中心没切过去」）。
+    #
+    # 2026-08-12 放宽：原来卡的是上海行政区边界（lon 120.9-122.1）。
+    # 但检索本来就带地理半径，会正常召回邻近的苏州/嘉兴点位（例如 120.77 的东沙湖生态公园），
+    # 那不是 bug。用行政区边界当断言，等于每进一条边界外的合法数据就红一次。
+    # 改成量级判断：中心必须在上海（上面断言 1 已经卡死），且绝大多数点位落在上海通勤圈内。
+    if d["places"]:
+        in_core = [p for p in d["places"] if 30.7 < p["latitude"] < 31.9 and 120.6 < p["longitude"] < 122.3]
+        ratio = len(in_core) / len(d["places"])
+        assert ratio >= 0.8, (
+            f"只有 {ratio:.0%} 的点位落在上海及邻近区域，搜索中心疑似没切过去。"
+            f"样例：{[(p['name'], p['latitude'], p['longitude']) for p in d['places'][:3]]}"
+        )
+        # 无论如何都不该出现杭州本地点位（经度 <120.4 基本就是杭州及以西了）
+        strays = [p["name"] for p in d["places"] if p["longitude"] < 120.4]
+        assert not strays, f"上海搜索返回了杭州方向的点位，搜索中心没切换：{strays[:5]}"
 
 
 # ─────────────── T008 [US2] 高德 fallback（漠河）───────────────
@@ -212,5 +224,10 @@ async def test_places_filter_excludes_low_confidence(client):
             f"❌ {p['name']} 的 confidence={conf!r}，应该被过滤"
         )
 
-    # total 数量应该明显减少（杭州 80km 之前 470 个 → 现在 ≤ 65）
-    assert d["total"] <= 65, f"过滤后应 ≤65 个，实际 {d['total']}"
+    # 这里原本还有一条 `assert d["total"] <= 65`，2026-08-12 删掉了。
+    # 原因：65 是 2026-05-18 那天库里的数据量快照（见上面 docstring），
+    # 而这个库每跑一次 AI 搜索就会长大 —— 断言注定随时间失效，
+    # 失效时报的还是「过滤没生效」这种误导性错误，实际上过滤一直是好的。
+    # 上面那个逐条 confidence 检查才是真正的行为断言：只要过滤失效，
+    # 必然有 low/pending/NULL 混进来被它抓住，与库里有多少条数据无关。
+    assert isinstance(d["total"], int)

@@ -678,3 +678,22 @@ async def unified_search(payload: SearchRequest, db: AsyncSession = Depends(get_
             "search_center_source": resolution.source,  # spec-017: 'dict'/'amap'/'no_place_token'
         },
     }
+
+
+@router.get("/dev/prompt-preview")
+async def dev_prompt_preview(q: str = "杭州周边免费露营地", limit: int = 12) -> dict[str, Any]:
+    """开发者面板只读接口：预览当前参数下的联网搜索 prompt。
+
+    不调 AI、不写库、不可修改任何东西——只把 _build_seed_search_prompt 的产物
+    原样返回，让 H5 开发者抽屉展示「limit 旋钮如何改变系统提示词」。
+    POC/演示用；正式上线前随开发者面板一起裁剪。
+    """
+    from app.config import settings
+    from app.services.ai_service import _build_seed_search_prompt
+
+    safe_limit = min(max(limit, 1), 50)
+    return {
+        "prompt": _build_seed_search_prompt(q, safe_limit),
+        "limit_effective": safe_limit,
+        "model": settings.ark_model,
+    }

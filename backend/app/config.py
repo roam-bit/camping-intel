@@ -1,3 +1,5 @@
+from typing import Union
+
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
 
@@ -6,7 +8,12 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://camping:camping123@localhost:5432/camping"
     redis_url: str = "redis://localhost:6379/0"
     debug: bool = False
-    cors_allow_origins: list[str] = []
+    # 声明成 Union 而不是纯 list[str] 是必须的，不是随手写的：
+    # pydantic-settings 见到「纯 list 类型」的字段，会先拿环境变量的值去做 JSON 解析，
+    # 于是 .env 里人类可读的 `A,B` 直接抛 JSONDecodeError —— 下面那个 validator
+    # 连执行的机会都没有。加上 str 分支后它不再走 JSON 解码，原始字符串才能交给 validator。
+    # 运行时经 validator 归一化后永远是 list[str]。
+    cors_allow_origins: Union[str, list[str]] = []
 
     @field_validator("cors_allow_origins", mode="before")
     @classmethod

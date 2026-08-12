@@ -5,10 +5,9 @@
  * 一起搬进来。父组件只通过 props 传 places / searchCenter / userCoord / locationStatus
  * 和回调（点 marker / 报错），不再持有 amap 句柄。
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View } from '@tarojs/components'
 import { hasAmapKey, loadAmap, toAmapPosition } from '../utils/amap'
-import { displaySourceCount } from '../utils/place-helpers'
 import type { MapCanvasProps } from './MapCanvas.types'
 
 export function MapCanvas({
@@ -22,12 +21,17 @@ export function MapCanvas({
   const mapRef = useRef<any>(null)
   const markersRef = useRef<any[]>([])
   const clusterRef = useRef<any>(null)
+  // 地图实例就绪信号。修 bug（2026-06-12）：用户在 AMap SDK 加载完成前就搜索时，
+  // marker effect 因 mapRef 为空提前返回，而 SDK 就绪后没有任何状态变化能让它重跑
+  // → marker 永远不入图（此前被 AI 流式回答的频繁重渲染碰巧掩盖）。
+  // mapReady 进 markers/setCenter 两个 effect 的依赖，SDK 就绪后强制补跑一轮。
+  const [mapReady, setMapReady] = useState(false)
 
   // 1) 初始化高德 SDK + Map 实例（只跑一次）
   useEffect(() => {
     if (process.env.TARO_ENV !== 'h5') return
     if (!hasAmapKey()) {
-      onMapError('缺少 TARO_APP_AMAP_WEB_KEY，H5 暂无法显示高德地图')
+      onMapError('未配置高德 Key，地图暂不可用 —— 点顶部「列表」照样能看全部点位。配置方法见 docs/学生快速启动.md')
       return
     }
     loadAmap()
@@ -38,9 +42,12 @@ export function MapCanvas({
           zoom: 9,
           resizeEnable: true,
           viewMode: '2D',
+          // 方案A-2 视觉：浅灰底图让暖沙色 UI 和彩色 marker 更突出（仅 H5；weapp 走原生地图组件）
+          mapStyle: 'amap://styles/whitesmoke',
         })
         mapRef.current.addControl(new AMap.Scale())
         mapRef.current.addControl(new AMap.ToolBar({ position: 'RT' }))
+        setMapReady(true)
       })
       .catch((error: unknown) => onMapError(error instanceof Error ? error.message : '高德地图加载失败'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -57,7 +64,7 @@ export function MapCanvas({
         /* SDK 没就绪就忽略 */
       }
     }
-  }, [locationStatus, userCoord.lat, userCoord.lon])
+  }, [locationStatus, userCoord.lat, userCoord.lon, mapReady])
 
   // 3) places / searchCenter 变化 → 重新渲染 marker + fitView
   useEffect(() => {
@@ -68,10 +75,14 @@ export function MapCanvas({
     if (markersRef.current.length) mapRef.current.remove(markersRef.current)
     const markers = places.map((place) => {
       const [lon, lat] = toAmapPosition(place)
+      // 方案A-2（demo2_v1b 用户选定样式）：圆形 emoji pin，按类型着色
+      // 营地=绿⛺ / 驻车点=蓝🚐 / 野外=橙🌲；样式在 index.h5.css 的 .map-pin
+      const kind = place.type === '驻车点' ? 'park' : place.type === '野外露营' ? 'wild' : 'camp'
+      const emoji = kind === 'park' ? '🚐' : kind === 'wild' ? '🌲' : '⛺'
       const marker = new AMap.Marker({
         position: [lon, lat],
-        offset: new AMap.Pixel(-18, -42),
-        content: `<div class="map-poi-marker source"><span class="map-poi-icon"></span><span class="map-poi-score">${displaySourceCount(place)}</span></div>`,
+        offset: new AMap.Pixel(-19, -19), // 38px 圆形 pin，锚点居中
+        content: `<div class="map-pin ${kind}" title="${(place.name || '').replace(/"/g, '')}">${emoji}</div>`,
       })
       marker.on('click', () => onMarkerClick(place))
       return marker
@@ -88,7 +99,7 @@ export function MapCanvas({
     } else if (searchCenter) {
       mapRef.current.setZoomAndCenter(10, [searchCenter.lon, searchCenter.lat])
     }
-  }, [places, searchCenter, onMarkerClick])
+  }, [places, searchCenter, onMarkerClick, mapReady])
 
   return <View id='amap-container' className='map-canvas' />
 }

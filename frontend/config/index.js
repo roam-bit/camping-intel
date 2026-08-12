@@ -106,6 +106,14 @@ const config = {
         enable: true,
         config: {}
       },
+      // H5 端关闭 px→rem 自动缩放（设计稿 750 的移动端约定）。
+      // 原因：① 宽屏下根字号被撑到 40px，未显式设字号的元素（如 .empty-card）继承
+      // 后文字爆炸；② 手机视口下所有 px 被压到 ~52%，文字实际偏小。
+      // 关闭后 CSS 里写多少 px 就渲染多少 px，桌面（面试演示主场景）所见即所得。
+      // 小程序端（mini.postcss）不受影响，继续走 px→rpx。
+      pxtransform: {
+        enable: false
+      },
       cssModules: {
         enable: false,
         config: {

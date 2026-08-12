@@ -62,52 +62,48 @@
 
 ---
 
-## 🚀 快速开始（Docker，推荐）
+## 🚀 快速开始
 
-> 前置：已安装 [Docker](https://www.docker.com/) 与 Docker Compose。
-
-**1. 克隆并配置环境变量**
+> 唯一前置：装一个 [Docker Desktop](https://www.docker.com/products/docker-desktop/)。
+> Node、Python、PostgreSQL 全在容器里，**你一个都不用装**。
 
 ```bash
 git clone https://github.com/roam-bit/camping-intel.git
 cd camping-intel
-cp .env.example .env
+docker compose up
 ```
 
-**2. 填入你自己的 API key**
+浏览器打开 **<http://localhost:10086>**。Windows 用 PowerShell/CMD 同样这条命令。
 
-编辑 `.env`，至少填 `ARK_API_KEY`（火山方舟）和 `AMAP_WEB_KEY`（高德）。
-申请入口见 [`.env.example`](.env.example) 顶部注释，或下方 [API key 申请](#-api-key-申请)。
+首次 8-20 分钟（下载依赖），之后 30 秒。建表、导入数据都在容器启动时自动完成。
 
-**3. 启动全部服务**（postgres + redis + 后端 + 前端）
+### 不填任何 API key 也能玩
 
-```bash
-docker compose -p camping_ai up -d
-```
+仓库自带 **551 个真实点位 + 594 条信源**（`backend/seed_data/`），覆盖杭州、上海、北京、拉萨、新疆等地，全部由 AI 联网抓取沉淀而来，每个点位都能点开原始信源自行核验。
 
-**4. 初始化数据库表**（首次必做，否则查询会报表不存在）
+| 功能 | 不填 key | 说明 |
+|---|---|---|
+| 点位列表 / 详情 / 信源求证 / 导航跳转 | ✅ 完整可用 | 开箱即用 |
+| 关键词搜索（查本地库） | ✅ 秒回 | 试试搜「杭州」「莫干山」 |
+| 地图底图 | ❌ | 自动切到「列表」视图，内容一样全 |
+| AI 联网搜**新**地点 | ❌ | 只查本地库，**不会崩** |
 
-```bash
-docker compose -p camping_ai exec api alembic upgrade head
-```
+想要地图和 AI 搜索，编辑首次启动自动生成的 `.env` 填入真实 key（见下节），然后 `docker compose restart`。
 
-**5. 访问**
-
-- 前端 H5：<http://localhost:10086>
-- 后端健康检查：<http://127.0.0.1:8000/api/v1/health>
-
-> 💡 填占位 key 也能启动，但 AI 搜索链路会降级/报错——要真正出结果，必须填真实 key。
+> 🆘 遇到问题看 **[docs/学生快速启动.md](docs/学生快速启动.md)** —— 完整排错对照表、端口冲突处理、推倒重来的兜底方案。
 
 ---
 
 ## 🔑 API key 申请
 
-| key | 用途 | 申请地址 | 是否必填 |
+**一个都不填也能跑**（见上节），下面这些是解锁地图和 AI 联网搜索用的：
+
+| key | 用途 | 申请地址 | 不填会怎样 |
 |---|---|---|---|
-| `ARK_API_KEY` | AI 联网搜索 + 内容整理 | <https://console.volcengine.com/ark/> | ✅ 必填 |
-| `AMAP_WEB_KEY` | 后端地理编码（地名→坐标） | <https://console.amap.com/> | ✅ 必填 |
-| `AMAP_JS_KEY` + `AMAP_JS_SECURITY_CODE` | 前端地图渲染 | 同上（高德控制台建「Web端 JS API」类型 key） | ✅ 必填 |
-| `DEEPSEEK_API_KEY` | 多模型对比评测 | <https://platform.deepseek.com/> | ⬜ 可选 |
+| `ARK_API_KEY` | AI 联网搜索 + 内容整理 | <https://console.volcengine.com/ark/> | 只查本地 551 个点位，不崩 |
+| `AMAP_JS_KEY` + `AMAP_JS_SECURITY_CODE` | 前端地图渲染 | <https://console.amap.com/> 建「Web端 JS API」类型 key | 自动切列表视图，内容一样全 |
+| `AMAP_WEB_KEY` | 后端地理编码（地名→坐标） | 同上，建「Web服务」类型 key | 生僻地名识别不出，常见地名走本地字典正常 |
+| `DEEPSEEK_API_KEY` | 多模型对比评测 | <https://platform.deepseek.com/> | 无影响（评测脚手架才用） |
 
 > 高德 key 通过**域名白名单**保护，前端 key 暴露在浏览器是正常的——记得在高德控制台绑定你的部署域名。
 
@@ -118,15 +114,19 @@ docker compose -p camping_ai exec api alembic upgrade head
 <details>
 <summary>展开本地分别启动前后端</summary>
 
+⚠️ **Python 必须是 3.9–3.12，不能用 3.13+** —— `asyncpg` / `pydantic` 还没有对应的预编译包，
+pip 会退化成现场编译并抛出几百行看不懂的 C 错误。走 Docker 完全不受这个影响（镜像自带 3.12）。
+
 **后端**（需本机有 PostgreSQL+PostGIS 与 Redis，或用 `docker compose up postgres redis`）：
 
 ```bash
 cd backend
-python -m venv .venv && source .venv/bin/activate
+python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 # 可选：信源深度抓取需要 Chromium（约 200MB）
 python -m playwright install chromium
 alembic upgrade head
+python scripts/load_seed_data.py    # 导入仓库自带的 551 个点位
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -161,24 +161,36 @@ camping-intel/
 │   │   ├── models/        # SQLAlchemy 模型（place / source / feedback）
 │   │   └── schemas/       # Pydantic 模型
 │   ├── alembic/           # 数据库迁移
-│   └── tests/             # pytest
-├── docs/                  # 设计文档（见下）
+│   ├── seed_data/         # ⭐ 随仓库分发的 551 个点位 + 594 条信源
+│   ├── scripts/           # 种子数据导入/导出、演示数据
+│   └── tests/             # pytest（105 条）
+├── docs/                  # 设计文档 + 上手指南（见下）
 ├── docker-compose.yml     # postgres + redis + api + frontend 一键编排
-└── .env.example           # 环境变量模板
+└── .env.example           # 环境变量模板（key 可留空）
 ```
+
+前端另有 `e2e/`（12 条 Playwright 端到端回归测试，每条对应一个真实修过的 UI bug）。
 
 ---
 
 ## 📚 设计文档
 
-本项目用 [Spec-Driven Development](https://github.com/github/spec-kit) 流程开发，保留了部分设计文档作为参考：
+### 上手 & 改造
+
+- [docs/学生快速启动.md](docs/学生快速启动.md) —— 第一次跑先看这份：一条命令、没 key 能玩什么、完整排错对照表
+- [docs/技术方案.md](docs/技术方案.md) —— 架构图、一次搜索请求的完整旅程、**5 个关键技术决策及其原因**、模块地图（标注哪些文件适合新手改、哪些是雷区）
+- [docs/学生练手任务.md](docs/学生练手任务.md) —— 6 个难度递增的改造任务，具体到文件和验证方法
+
+### 设计过程
+
+本项目用 [Spec-Driven Development](https://github.com/github/spec-kit) 流程开发，`docs/specs/` 下保留了 **16 个功能规格**的完整留痕（spec → plan → tasks → contracts）：
 
 - [docs/AI搜索约束设计.md](docs/AI搜索约束设计.md) —— AI 链路如何约束 LLM 保证「来源可信 + 坐标可信」（核心设计思路）
-- [docs/specs/005-precise-geocoding/](docs/specs/005-precise-geocoding/) —— 精确地理编码 spec
-- [docs/specs/017-amap-geo-fallback/](docs/specs/017-amap-geo-fallback/) —— 地名识别高德兜底 spec（完整的 spec → plan → tasks → contracts 范例）
+- [docs/specs/017-amap-geo-fallback/](docs/specs/017-amap-geo-fallback/) —— **推荐先读这个**。它记录了一次真实事故：用户搜「莫干山」，本地字典没有，调地图 API 返回了福建一个同名地点，搜索中心飞到 500 公里外，等 34 秒返回 0 结果。看一句用户抱怨如何变成带优先级的用户故事 + 可验收场景 + 性能护栏
+- [docs/specs/009~016](docs/specs/) —— 一条完整的「H5 → 微信小程序移植」叙事线
 - [docs/PRIVACY-TEMPLATE.md](docs/PRIVACY-TEMPLATE.md) —— 隐私政策模板（部署上线前替换占位符）
 
-> 部分设计文档为产品早期记录，引用的代号 / 文件名可能与当前代码不完全一致，仅供理解设计思路。
+> 部分早期设计文档引用的代号 / 文件名可能与当前代码不完全一致，仅供理解设计思路。
 
 ---
 

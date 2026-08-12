@@ -43,6 +43,7 @@ import {
   vehicleText,
 } from '../../utils/place-helpers'
 import type { FacilityFilterKey } from '../../utils/place-helpers'
+import { hasAmapKey } from '../../utils/amap'
 import { PlatformIcon } from '../../components/PlatformIcon'
 import { EmptyHero } from '../../components/EmptyHero'
 import { SearchBar } from '../../components/SearchBar'
@@ -54,7 +55,15 @@ import { QRCodeModal } from '../../components/QRCodeModal'
 import { registerQRModalShowFn } from '../../utils/qr-modal-controller'
 import { AiRiskNotice } from '../../components/AiContentLabels'
 import { MapCanvas } from '../../components/MapCanvas'
+import { DevPanel } from '../../components/DevPanel'
+import type { SearchDebugInfo } from '../../components/DevPanel'
 import './index.css'
+
+// H5 专属样式补丁（根字号修正等）。编译期 TARO_ENV 是常量，weapp 构建会把这段
+// 整体摇树掉，不会把 H5 样式带进小程序。
+if (process.env.TARO_ENV === 'h5') {
+  require('./index.h5.css')
+}
 
 // T7 D7-3 A：3 个固定示例 query 芯片
 
@@ -66,6 +75,12 @@ const RESULT_TABS: Array<{ key: string; label: string }> = [
   { key: '野外露营', label: '野外' }
 ]
 
+/** 开发者诊断快照合并：只覆盖「有值」的字段，undefined 不冲掉已有信息 */
+function mergeDebug(prev: SearchDebugInfo | null, next: Partial<SearchDebugInfo>): SearchDebugInfo {
+  const defined = Object.fromEntries(Object.entries(next).filter(([, v]) => v !== undefined))
+  return { ...(prev || {}), ...defined }
+}
+
 export default function IndexPage() {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('全部')
@@ -74,13 +89,26 @@ export default function IndexPage() {
   const [heroDismissed, setHeroDismissed] = useState(false)
   const [timeRange, setTimeRange] = useState<TimeRange>('365d')
   const [facilityFilter, setFacilityFilter] = useState<FacilityFilterKey>('all')
-  const [radiusKm] = useState(80)
+  // 开发者面板（仅 H5）：搜索数量/半径可调，localStorage 持久化；weapp 走固定默认值
+  const [radiusKm, setRadiusKm] = useState(() =>
+    process.env.TARO_ENV === 'h5' ? Number(Taro.getStorageSync('dev_radius_km')) || 80 : 80
+  )
+  const [searchLimit, setSearchLimit] = useState(() =>
+    process.env.TARO_ENV === 'h5' ? Number(Taro.getStorageSync('dev_search_limit')) || 12 : 12
+  )
+  const [devOpen, setDevOpen] = useState(false)
+  const [searchDebug, setSearchDebug] = useState<SearchDebugInfo | null>(null)
   // P2-4-G: places + loadPlaces + loading 抽到 usePlaces hook（声明放下方，等 userCoord/radiusKm 准备好）
   const [aiCandidates, setAiCandidates] = useState<Place[]>([])
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null)
   const [answer, setAnswer] = useState<AISearchResponse['answer'] | null>(null)
   const [unmapped, setUnmapped] = useState<AISearchResponse['unmapped_candidates']>([])
-  const [viewMode, setViewMode] = useState<'map' | 'list'>('map')
+  // 没配高德 Key 时地图必然是一块空白（SDK 加载不了），首屏落在地图 tab 等于
+  // 让第一次跑起来的人对着空框发呆。此时默认落到列表——数据、信源、导航全都在，
+  // 体验完整。配了 key 的照旧默认地图。
+  const [viewMode, setViewMode] = useState<'map' | 'list'>(
+    process.env.TARO_ENV === 'h5' && !hasAmapKey() ? 'list' : 'map',
+  )
   // loading state 由 usePlaces 提供（声明在 hook 调用后）
   const [searching, setSearching] = useState(false)
   const [progress, setProgress] = useState('')
@@ -168,6 +196,8 @@ export default function IndexPage() {
     setHasSearched(true)
     setWarning('')
     setWarningCode(null)
+    // 开发者面板：先放初始快照（complete 事件要等 AI 跑完才到，DB 秒回阶段不能让诊断空着）
+    setSearchDebug({ query: text, strategy: '检索中…', extractPending: true })
 
     // spec 001-fix-source-geo-filter: 搜索时重新拉 places 用 q，让后端按地理意图过滤
     // 否则 places 仍是初始定位时拉的（杭州），与搜索词不匹配
@@ -203,7 +233,7 @@ export default function IndexPage() {
 
     try {
       await aiSearchStream(
-        { q: text, limit: 12, radius_km: radiusKm },
+        { q: text, limit: searchLimit, radius_km: radiusKm },
         (evt) => {
           // 1) 阶段事件 → 进度文案
           const stageText = STAGE_TEXT[evt.type]
@@ -259,6 +289,22 @@ export default function IndexPage() {
             // spec-017: unrecognized_location 时后端返回 search_center=null，下面 truthy 检查
             // 自然跳过 setSearchCenter → 地图视野保持不变（spec FR-009）。无需额外分支。
             const sb = (data as any).source_breakdown
+            // 开发者面板：召回诊断快照（仅 H5 有入口展示，state 本身双端无害）
+            const m = (data as any).metrics
+            // 只合并「有值」的字段——流式 complete 的 source_breakdown 字段不全，
+            // undefined 直接覆盖会把初始快照的"检索中…"等冲成空横杠
+            setSearchDebug((prev) => mergeDebug(prev, {
+              query: text,
+              strategy: sb?.strategy ?? (data.extract_pending ? '流式 + AI 后台抽取' : undefined),
+              detectedPlace: sb?.detected_place,
+              centerSource: sb?.search_center_source,
+              dbHits: sb?.db,
+              aiSpots: sb?.ai,
+              threshold: sb?.threshold,
+              warningCode: (data.warning_code as any) || undefined,
+              elapsedSeconds: typeof m?.elapsed_seconds === 'object' ? m?.elapsed_seconds?.total : m?.elapsed_seconds,
+              extractPending: !!data.extract_pending,
+            }))
             if (sb?.search_center) {
               setSearchCenter({
                 lat: sb.search_center.lat,
@@ -290,12 +336,25 @@ export default function IndexPage() {
     } catch (error) {
       // 7.5-B fallback：stream 整体失败回到老阻塞接口（保留 V2 DB-first 兜底）
       try {
-        const result = await unifiedSearch(text, 12, radiusKm, userCoord.lat, userCoord.lon)
+        const result = await unifiedSearch(text, searchLimit, radiusKm, userCoord.lat, userCoord.lon)
         setAnswer(result.answer || null)
         setAiCandidates((result.spots || []).map(normalizeAiSpot).filter((p) => displaySourceCount(p) > 0))
         setUnmapped(result.unmapped_candidates || [])
         setCategory('全部')
         const sb = (result as any).source_breakdown
+        const m2 = (result as any).metrics
+        setSearchDebug((prev) => mergeDebug(prev, {
+          query: text,
+          strategy: sb?.strategy,
+          detectedPlace: sb?.detected_place,
+          centerSource: sb?.search_center_source,
+          dbHits: sb?.db,
+          aiSpots: sb?.ai,
+          threshold: sb?.threshold,
+          warningCode: ((result as any).warning_code as any) || undefined,
+          elapsedSeconds: typeof m2?.elapsed_seconds === 'object' ? m2?.elapsed_seconds?.total : m2?.elapsed_seconds,
+          extractPending: false,
+        }))
         if (sb?.search_center) {
           setSearchCenter({ lat: sb.search_center.lat, lon: sb.search_center.lon, name: sb.detected_place })
         }
@@ -355,6 +414,7 @@ export default function IndexPage() {
             // eslint-disable-next-line no-console
             console.log(`[7.5-D poll] setAiCandidates with ${transformed.length} spots (filtered from ${r.spots.length})`)
             setAiCandidates(transformed)
+            setSearchDebug((prev) => prev ? { ...prev, aiSpots: r.spots!.length, extractPending: false } : prev)
           }
           if (r.unmapped_candidates && r.unmapped_candidates.length > 0) {
             setUnmapped(r.unmapped_candidates)
@@ -416,7 +476,9 @@ export default function IndexPage() {
   // P2-4-F: amap init / setCenter / markers 渲染全部搬到 MapCanvas 组件
   // mapRef / markersRef / clusterRef / 两个 useEffect 已在 MapCanvas 内部
 
-  const statusMessage = warning || progress
+  // 进度文案只在顶部 SearchBar 进度卡显示一处（含搜索中 + 后台精确定位阶段），
+  // 底部 sheet / 列表只显示 warning——此前两处同时显示同一句进度，信息重复。
+  const statusMessage = warning
 
   return (
     <View className='page'>
@@ -438,10 +500,32 @@ export default function IndexPage() {
         {!hasSearched && !searching && !mapError && !heroDismissed && (
           <EmptyHero onQueryPick={(q) => runSearch(q)} onDismiss={() => setHeroDismissed(true)} />
         )}
+        {/* H5：地图右下角类型图例（demo2 样式；weapp 摇树掉） */}
+        {process.env.TARO_ENV === 'h5' && hasSearched && (
+          <View className='map-type-legend'>
+            <Text className='legend-item-h5 camp'>● 营地</Text>
+            <Text className='legend-item-h5 park'>● 驻车点</Text>
+            <Text className='legend-item-h5 wild'>● 野外</Text>
+          </View>
+        )}
       </View>
 
       {/* T7 D7-2 B：搜过后顶部面板折叠为窄条，给地图让位 */}
       <View className={`top-panel ${hasSearched ? 'collapsed' : ''}`}>
+        {/* 品牌区：仅 H5 注入（桌面分栏顶栏左侧 logo），weapp 构建摇树掉；
+            手机宽度下由 index.h5.css 隐藏 */}
+        {process.env.TARO_ENV === 'h5' && (
+          <Button className='dev-gear' onClick={() => setDevOpen(true)}>⚙️</Button>
+        )}
+        {process.env.TARO_ENV === 'h5' && (
+          <View className='brand'>
+            <View className='brand-mark'>⛺</View>
+            <View className='brand-text'>
+              <Text className='brand-name'>AI 驻车露营情报助手</Text>
+              <Text className='brand-sub'>WILD CAMP INTEL</Text>
+            </View>
+          </View>
+        )}
         <View className='nav-row'>
           <View className='mode-tabs'>
             <Button className={`mode-tab ${viewMode === 'map' ? 'active' : ''}`} onClick={() => setViewMode('map')}>地图</Button>
@@ -505,6 +589,9 @@ export default function IndexPage() {
         </View>
       )}
 
+      {/* dock：无样式包裹层（两个孩子都是 absolute 定位、不受影响）。
+          桌面 H5 由 index.h5.css 把它变成左侧分栏容器（AI 卡 + 点位列表纵排）。 */}
+      <View className='dock'>
       <AnswerPanel
         answer={answer}
         warningCode={warningCode}
@@ -547,7 +634,12 @@ export default function IndexPage() {
         <View className='bottom-sheet'>
           <View className='sheet-header'>
             <View>
-              <Text className='sheet-title'>来源点位 {visiblePlaces.length}</Text>
+              {/* H5 桌面标题带识别出的地名（demo2 样式："杭州 · 12 处点位"）；weapp 保持原文案 */}
+              <Text className='sheet-title'>
+                {process.env.TARO_ENV === 'h5' && searchCenter?.name
+                  ? `${searchCenter.name} · ${visiblePlaces.length} 处点位`
+                  : `来源点位 ${visiblePlaces.length}`}
+              </Text>
               <Text className='subtle'>网页来源 {factSources(answer?.sources).length || visiblePlaces.reduce((sum, place) => sum + displaySourceCount(place), 0)} · {radiusKm}km</Text>
             </View>
             <Button className='switch-btn' onClick={() => setViewMode('list')}>列表</Button>
@@ -586,6 +678,7 @@ export default function IndexPage() {
           )}
         </View>
       )}
+      </View>
 
       {selectedPlace && (
         <PlaceDetailDrawer
@@ -594,6 +687,20 @@ export default function IndexPage() {
           onClose={() => setSelectedPlace(null)}
           onSourceViewed={markSourceViewed}
           onQuickFeedback={quickFeedback}
+        />
+      )}
+
+      {/* 开发者面板（仅 H5）：参数旋钮 + 召回诊断 + prompt 预览 */}
+      {process.env.TARO_ENV === 'h5' && (
+        <DevPanel
+          open={devOpen}
+          onClose={() => setDevOpen(false)}
+          limit={searchLimit}
+          radiusKm={radiusKm}
+          onLimitChange={(v) => { setSearchLimit(v); Taro.setStorageSync('dev_search_limit', String(v)) }}
+          onRadiusChange={(v) => { setRadiusKm(v); Taro.setStorageSync('dev_radius_km', String(v)) }}
+          debug={searchDebug ? { ...searchDebug, spotsShown: visiblePlaces.length } : null}
+          query={query}
         />
       )}
 

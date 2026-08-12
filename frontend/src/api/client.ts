@@ -199,3 +199,10 @@ export function submitFeedback(
 ) {
   return request<{ place: Place }>(`/api/v1/places/${id}/feedback`, { method: 'POST', data })
 }
+
+/** 开发者面板：只读获取「当前参数下的联网搜索 prompt」预览（仅 H5 开发者抽屉使用） */
+export function getDevPromptPreview(q: string, limit: number) {
+  return request<{ prompt: string; limit_effective: number; model: string }>('/api/v1/dev/prompt-preview', {
+    query: { q, limit },
+  })
+}

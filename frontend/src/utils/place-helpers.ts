@@ -174,6 +174,25 @@ export function factSources(sources?: SourceItem[]) {
 
 // —— 内部标签清洗 —— //
 
+/**
+ * AI 回答正文的"裸链接噪声"清洗（仅展示层使用，不改动原始数据）。
+ *
+ * AI 联网回答常按抽取模板逐条输出"…，来源链接：http://xxx"，裸 URL 又长又不可点，
+ * 与下方可点击的信源 chip 完全重复。这里剥掉：
+ *  1. "来源链接：<URL>" 整段（含前导顿号/逗号；URL 可能是 http(s) 或为空/无）
+ *  2. 残留的孤立裸 URL（SSE 打字机流式期间可能先到一半 URL，也能被兜住）
+ *  3. 清洗后遗留的空标点尾巴（"，。"→"。"）
+ */
+export function stripAnswerLinkNoise(value?: string | null) {
+  if (!value) return ''
+  return value
+    .replace(/[，,、]?\s*来源链接[:：]\s*(https?:\/\/\S*|无|未提供)?/g, '')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/[，,]\s*([。；])/g, '$1')
+    .replace(/[ \t]+\n/g, '\n')
+    .trim()
+}
+
 export function cleanInternalText(value?: string | null) {
   if (!value) return ''
   return value
