@@ -1,0 +1,10 @@
+# 不要把宿主机的 node_modules 复制进镜像：
+# 1) 它是按宿主机架构装的，进容器可能直接不能用；
+# 2) 更隐蔽的危害——它会盖住镜像里 `npm install` 的结果，
+#    让「依赖装不全」这类问题在本地构建时被掩盖，直到别人 clone 一份干净仓库才爆出来。
+#    本项目就踩过：本地跑得好好的，clone 版前端起不来（ajv 版本冲突）。
+node_modules
+dist-h5
+.taro-cache
+.swc
+npm-debug.log*
